@@ -1,0 +1,59 @@
+name: Build Generic Mod Config Menu
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: "Create a GitHub Release with the build artifact"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup build environment
+        uses: Pathoschild/SMAPI-ModBuildWorkflow/add-build-environment@v1
+
+      - name: Build GenericModConfigMenu
+        run: >
+          dotnet build
+          framework/GenericModConfigMenu/GenericModConfigMenu.csproj
+          --configuration Release
+          -p:SolutionDir="${{ github.workspace }}/"
+          -p:EnableModDeploy=false
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GenericModConfigMenu
+          path: _releases/GenericModConfigMenu*.zip
+
+      - name: Get mod version
+        id: version
+        if: ${{ inputs.create_release }}
+        run: |
+          VERSION=$(grep -oP '<Version>\K[^<]+' framework/GenericModConfigMenu/GenericModConfigMenu.csproj)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        if: ${{ inputs.create_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Generic Mod Config Menu v${{ steps.version.outputs.version }}
+          body: |
+            ## Generic Mod Config Menu v${{ steps.version.outputs.version }}
+
+            ### Installation
+            1. Download the zip file below
+            2. Extract the zip file
+            3. Place the `GenericModConfigMenu` folder into your Stardew Valley `Mods` folder
+          files: _releases/GenericModConfigMenu*.zip
+          draft: true
